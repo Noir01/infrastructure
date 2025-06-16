@@ -122,6 +122,28 @@ cmake -DLLVM_ENABLE_PROJECTS="${COMPONENTS}" \
       -DCMAKE_INSTALL_PREFIX="${OPENCILK_INSTALL_PREFIX:?}" \
       -DLLVM_OPTIMIZED_TABLEGEN=On \
       "${OPENCILK_SOURCE}/llvm"
+
+# try to build clang only
+cmake --build . --target clang -- -j "${NCPU}"
+
+echo "=== DEBUG: PATH is ==="
+echo "$PATH"
+echo "=== DEBUG: makeWrapper? ==="
+command -v makeWrapper || echo "makeWrapper not found in PATH"
+
+# Wrap clang
+WRAP_DIR="${BUILD_DIR}/nix-wrap"
+mkdir -p "${WRAP_DIR}"
+for p in clang clang++; do
+    ${pkgs.makeWrapper}/bin/makeWrapper \
+    "${BUILD_DIR}/bin/${p}" "${WRAP_DIR}/${p}" \
+    --suffix NIX_LDFLAGS " ${NIX_LDFLAGS}" \
+    --suffix NIX_CFLAGS_COMPILE " ${NIX_CFLAGS_COMPILE}" \
+    --suffix NIX_CFLAGS_LINK " ${NIX_CFLAGS_LINK}" \
+    --prefix PATH : ${bintools}/bin
+done
+export PATH="${WRAP_DIR}:$PATH"
+ 
 # Alternatively, make -j "${NCPU}" using the native system make.
 # cmake 3.10 neeeds -- before -j.  cmake 3.16 understands -j
 cmake --build . -- -j "${NCPU}"
